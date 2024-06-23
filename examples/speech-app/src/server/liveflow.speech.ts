@@ -7,21 +7,22 @@ import { SPEECH_LIVEFLOW_NAME } from "../common/defs";
 import { translationSpec } from "@livestack/translate-server";
 import { titleSummarizerSepc } from "@livestack/summarizer/server";
 import { textSplittingSpec } from "@livestack/lab-internal-server";
+import { discordLoggerSpec } from "/Users/viola/livestack/discord-bot/src/discordLoggerSpec";
 
 // Define the speech liveflow
 export const speechLiveflow = Liveflow.define({
   name: SPEECH_LIVEFLOW_NAME,
   connections: [
     // Connection from raw PCM to WAV
-    conn({
-      from: rawPCMToWavSpec,
-      transform: ({ wavb64Str }) => ({ wavb64Str, whisperType: "openai" }),
-      to: speechChunkToTextSpec,
-    }),
+    // conn({
+    //   from: rawPCMToWavSpec,
+    //   transform: ({ wavb64Str }) => ({ wavb64Str, whisperType: "openai" }),
+    //   to: speechChunkToTextSpec,
+    // }),
     // Connection from speech chunk to text
     conn({
-      from: speechChunkToTextSpec,
-      transform: ({ transcript }) => transcript,
+      from: discordLoggerSpec,
+      transform: ({ log }) => log,
       to: textSplittingSpec,
     }),
     // Connection from text splitting to title summarizer
