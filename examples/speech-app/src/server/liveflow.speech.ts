@@ -44,9 +44,9 @@ export const speechLiveflow = Liveflow.define({
   ],
   exposures: [
     // Expose the default input for raw PCM to WAV
-    expose(rawPCMToWavSpec.input.default, "input-default"),
+    // expose(rawPCMToWavSpec.input.default, "input-default"),
     // Expose the default output for speech chunk to text
-    expose(speechChunkToTextSpec.output.default, "transcription"),
+    // expose(speechChunkToTextSpec.output.default, "transcription"),
     // Expose the default output for title summarizer
     expose(titleSummarizerSepc.output.default, "summarized-title"),
     // Expose the default output for translation

@@ -98,6 +98,7 @@ import {
     }
   };
   
+/*
   client.once("ready", async () => {
     console.log(`Logged in as ${client.user?.tag}!`);
   
@@ -175,3 +176,97 @@ import {
   });
   
   client.login(token);
+*/
+
+// Revised-adding startLogger and loggerReady, and export them for use in the worker
+let loggerReadyResolve: () => void;
+const loggerReady = new Promise<void>((resolve) => {
+  loggerReadyResolve = resolve;
+});
+
+const startLogger = () => {
+  client.once("ready", async () => {
+    console.log(`Logged in as ${client.user?.tag}!`);
+
+    if (!guildId) {
+      console.error("Guild ID is not available.");
+      return;
+    }
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) {
+      console.error(`Guild with ID ${guildId} not found`);
+      return;
+    }
+
+    // Create a role with necessary permissions
+    let loggerRole = guild.roles.cache.find(role => role.name === 'logger');
+    if (!loggerRole) {
+      loggerRole = await guild.roles.create({
+        name: 'logger',
+        permissions: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.SendMessages,
+        ],
+      });
+      console.log(`Created role: ${loggerRole.name}`);
+    }
+
+    // Assign the role to the bot
+    const botMember = guild.members.cache.get(client.user!.id);
+    if (botMember && !botMember.roles.cache.has(loggerRole.id)) {
+      await botMember.roles.add(loggerRole);
+      console.log(`Assigned role to bot: ${loggerRole.name}`);
+    }
+
+    const textChannels = guild.channels.cache.filter(
+      (channel) => channel.type === ChannelType.GuildText
+    );
+
+    // Fetch and log historical messages
+    for (const channel of textChannels.values()) {
+      const permissions = channel.permissionsFor(client.user!);
+      if (!permissions?.has(PermissionFlagsBits.ViewChannel) || 
+          !permissions.has(PermissionFlagsBits.ReadMessageHistory)) {
+        console.log(`Skipping private channel: ${channel.name}`);
+        continue;
+      }
+
+      console.log(`Fetching messages from channel: ${channel.name}`);
+      await fetchMessages(channel as TextChannel);
+    }
+
+    console.log("Finished fetching historical messages");
+
+    // Start real-time logging
+    client.on("messageCreate", async (message) => {
+      if (message.guild?.id === guildId) {
+        await logMessage(message);
+      }
+    });
+
+    client.on("messageReactionAdd", async (reaction, user) => {
+      const message = reaction.message;
+      if (message.guild?.id === guildId) {
+        const messageDate = message.createdAt;
+        const isoTimestamp = messageDate.toISOString();
+        const estTimestamp = messageDate.toLocaleString("en-US", { timeZone: "America/New_York" });
+        const logEntry = `${isoTimestamp} (EST: ${estTimestamp}) - ${user.tag} reacted with ${reaction.emoji.name} to message: ${message.id}\n`;
+        fs.appendFile(logFilePath, logEntry, (err) => {
+          if (err) {
+            console.error("Error writing to log file", err);
+          }
+        });
+      }
+    });
+
+    loggerReadyResolve();
+  });
+
+  client.login(token).catch((error) => {
+    console.error("Error logging in", error);
+    loggerReadyResolve(); // Ensure the promise resolves even on error
+  });
+};
+
+export { startLogger, loggerReady };
